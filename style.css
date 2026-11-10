@@ -447,6 +447,7 @@ h1 {
     max-width: 240px;
 }
 
+
 .timer-input-wrapper {
     display: flex;
     align-items: center;
@@ -456,7 +457,7 @@ h1 {
     padding: 0 12px;
     transition: border-color 0.2s, box-shadow 0.2s;
     flex: 1 1 auto;
-    min-width: 105px;
+    min-width: 115px; /* Немного увеличили ширину, чтобы поместились стрелочки */
     height: 40px;
     box-sizing: border-box;
 }
@@ -468,7 +469,6 @@ h1 {
 
 .timer-input-wrapper input {
     width: 100%;
-    min-width: 40px;
     background: transparent;
     border: none;
     padding: 0 4px;
@@ -478,18 +478,8 @@ h1 {
     font-size: 1.05rem;
     font-variant-numeric: tabular-nums;
     outline: none;
-    -moz-appearance: textfield;
 }
 
-.timer-input-wrapper input::-webkit-outer-spin-button,
-.timer-input-wrapper input::-webkit-inner-spin-button {
--webkit-appearance: none;
-margin: 0;
-}
-.timer-input-wrapper input:disabled {
-opacity: 0.45;
-cursor: not-allowed;
-}
 .timer-unit {
 font-size: 0.8rem;
 font-weight: 600;

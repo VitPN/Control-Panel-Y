@@ -230,6 +230,10 @@ window.setRelayControlsDisabled = function(isDisabled) {
     document.querySelectorAll('.preset-btn').forEach(btn => {
         btn.disabled = isDisabled;
     });
+
+    if (isDisabled) {
+        updateManualButtonsVisual(null);
+    }
 };
 
 // 9. Синхронизация интерфейса с реальным состоянием STM32 (после GET_STATUS)
