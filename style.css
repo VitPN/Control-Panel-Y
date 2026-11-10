@@ -484,6 +484,7 @@ h1 {
     font-size: 1.05rem;
     font-variant-numeric: tabular-nums;
     outline: none;
+    -moz-appearance: textfield; /* Скрывает стрелочки в Firefox */
 }
 
 .timer-input-wrapper input::-webkit-outer-spin-button,
