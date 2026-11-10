@@ -1,83 +1,8 @@
 /**
- * Астрономический расчёт восхода и захода солнца для г. Брест (sun_calendar.js)
- * Автоматически определяет часовой пояс системы через Intl API.
- */
-
-// 1. Функция для безопасного получения смещения часового пояса через международный API
-function getSystemTimezoneOffset() {
-    try {
-        const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const date = new Date();
-        // Форматируем UTC-время в строку по правилам текущего системного региона
-        const text = new Intl.DateTimeFormat('ru-RU', { timeZone: tzName, timeZoneName: 'longOffset' }).format(date);
-        // Извлекаем из строки подпись вида GMT+03:00 или GMT+3
-        const match = text.match(/[+-]\d+/);
-        if (match) {
-            return parseFloat(match[0]);
-        }
-    } catch (e) {
-        console.warn("Ошибка Intl API, переключаемся на fallback через getTimezoneOffset");
-    }
-    // Резервный вариант на случай, если старый браузер не поддерживает Intl
-    return (new Date().getTimezoneOffset() / -60);
-}
-
-// Автоматически присваиваем вычисленное значение часового пояса
-window.currentSunTimezone = getSystemTimezoneOffset();
-console.log(`[Timezone Auto]: Вычислен точный часовой пояс UTC+${window.currentSunTimezone} через Intl API.`);
-
-// 2. Основная функция расчёта времени восхода и захода солнца
-window.calculateSunTimings = function(offsetOffMin = 0, offsetOnMin = 0) {
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 0);
-    const diff = now - startOfYear;
-    const oneDay = 1000 * 60 * 60 * 24;
-    const dayOfYear = Math.floor(diff / oneDay);
-
-    const latitude = 52.097;
-    const longitude = 23.687;
-    
-    // Используем динамический часовой пояс, определённый системой устройства
-    const timeZone = window.currentSunTimezone; 
-
-    const gamma = (2.0 * Math.PI / 365.0) * (dayOfYear - 1);
-    const eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) - 0.014615 * Math.cos(2.0 * gamma) - 0.040849 * Math.sin(2.0 * gamma));
-    const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) - 0.006758 * Math.cos(2.0 * gamma) + 0.000907 * Math.sin(2.0 * gamma) - 0.002697 * Math.cos(3.0 * gamma) + 0.00148 * Math.sin(3.0 * gamma);
-
-    const timeOffset = eqTime + 4.0 * longitude - 60.0 * timeZone;
-    const tNoon = 720.0 - timeOffset;
-
-    const latRad = latitude * Math.PI / 180.0;
-    const cosHA = (Math.cos(90.833 * Math.PI / 180.0) / (Math.cos(latRad) * Math.cos(decl))) - (Math.tan(latRad) * Math.tan(decl));
-    const HA = Math.acos(Math.max(-1, Math.min(1, cosHA))) * 180.0 / Math.PI;
-
-    const sunriseMin = Math.round(tNoon - HA * 4.0);
-    const sunsetMin = Math.round(tNoon + HA * 4.0);
-
-    const formatMins = (totalMins) => {
-        let m = ((totalMins % 1440) + 1440) % 1440;
-        const hh = String(Math.floor(m / 60)).padStart(2, '0');
-        const mm = String(m % 60).padStart(2, '0');
-        return `${hh}:${mm}`;
-    };
-
-    return {
-        sunrise: formatMins(sunriseMin),
-        sunset: formatMins(sunsetMin),
-        lightOff: formatMins(sunriseMin + offsetOffMin),
-        lightOn: formatMins(sunsetMin + offsetOnMin)
-    };
-};
-
-
-
-
-
-/**
  * Автономный расчет времени восхода и захода солнца для г. Бреста (UTC+3)
  * Не требует подключения к интернету и сторонних API.
  */
-window.calculateB_t_SunTimings = function() {
+window.calculateBrestSunTimings = function() {
     const now = new Date();
     
     // Географические координаты Бреста
@@ -143,7 +68,7 @@ window.calculateB_t_SunTimings = function() {
  * Автономный расчет времени восхода, захода солнца и коммутации света для г. Бреста (UTC+3)
  * Поддерживает кастомные смещения в минутах (offsets)
  */
-window.calculateB_2222SunTimings = function(offsetOffMinutes = 0, offsetOnMinutes = 0) {
+window.calculateBrestSunTimings = function(offsetOffMinutes = 0, offsetOnMinutes = 0) {
     const now = new Date();
     
     const latitude = 52.097;

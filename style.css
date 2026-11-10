@@ -173,12 +173,10 @@ body {
 
 .light-status-block {
     display: flex;
-    flex-direction: column; /* Надпись сверху, кнопки и минуты снизу */
     align-items: center;
-    justify-content: center;
-    gap: 6px;
+    justify-content: space-between;
     margin-top: 12px;
-    padding: 6px 8px;
+    padding: 4px 6px;
     border-radius: 8px;
     box-sizing: border-box;
     width: 100%;
@@ -197,28 +195,33 @@ body {
     color: #f59e0b;
 }
 
-.light-status-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    white-space: nowrap;
+#relay-state-label.status-pending {
+    color: var(--accent-color); /* Спокойный голубой цвет ожидания */
+    font-weight: bold;
+    animation: pendingPulse 1.2s infinite ease-in-out;
 }
 
-/* Нижняя строка: кнопка минус, надпись (+00 мин) и кнопка плюс на одном уровне */
-.offset-controls-row {
+@keyframes pendingPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+
+.light-status-text {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    width: 100%;
+    font-size: 0.76rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-grow: 1;
     padding: 0 4px;
-    box-sizing: border-box;
 }
 
 .offset-value {
-    font-size: 0.72rem;
-    font-weight: 600;
-    opacity: 0.85;
-    margin-top: 0;
-    white-space: nowrap;
+    font-size: 0.66rem;
+    opacity: 0.75;
+    margin-top: 2px;
 }
 
 .light-status-block .offset-btn {
@@ -434,15 +437,6 @@ h1 {
     background: rgba(239, 68, 68, 0.25);
 }
 
-/* Визуальное приглушение уже активного действия в ручном режиме */
-.btn-relay-on.btn-dimmed,
-.btn-relay-off.btn-dimmed {
-    opacity: 0.35;
-    filter: grayscale(40%);
-    transform: scale(0.98);
-}
-
-
 /* Капсула таймера, кнопка Пуск и пресеты */
 .timer-input-group {
     display: flex;
@@ -484,7 +478,7 @@ h1 {
     font-size: 1.05rem;
     font-variant-numeric: tabular-nums;
     outline: none;
-    -moz-appearance: textfield; /* Скрывает стрелочки в Firefox */
+    -moz-appearance: textfield;
 }
 
 .timer-input-wrapper input::-webkit-outer-spin-button,
