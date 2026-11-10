@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>STM32 Умный свет и климат</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <!-- ВЕРХНИЙ ЯРУС: Подключение слева + Солнце и Время справа -->
+    <header class="top-bar">
+        <div class="connection-box">
+            <h2 class="connection-title">Bluetooth</h2>
+            <div id="status-text" class="status">Отключено</div>
+            <button id="btn-connect" class="connect-btn">Подключить</button>
+        </div>
+
+        <div class="top-widgets-right">
+            <!-- Группа 1: Восход и Заход солнца -->
+            <div class="sun-container">
+                <div id="sunrise-clock" class="clock-widget">
+                    <div class="clock-title">☀️ Восход солнца</div>
+                    <div id="sunrise-time" class="clock-time">--:--</div>
+                    <div class="light-status-block light-status-off">
+                        <button class="offset-btn" onclick="adjustOffset('off', -5)">−</button>
+                        <div class="light-status-text">
+                            <span id="light-off-time">Выкл. света: --:--</span>
+                            <span id="offset-off-text" class="offset-value">(+00 мин)</span>
+                        </div>
+                        <button class="offset-btn" onclick="adjustOffset('off', 5)">+</button>
+                    </div>
+                </div>
+
+                <div id="sunset-clock" class="clock-widget">
+                    <div class="clock-title">🌙 Заход солнца</div>
+                    <div id="sunset-time" class="clock-time">--:--</div>
+                    <div class="light-status-block light-status-on">
+                        <button class="offset-btn" onclick="adjustOffset('on', -5)">−</button>
+                        <div class="light-status-text">
+                            <span id="light-on-time">Вкл. света: --:--</span>
+                            <span id="offset-on-text" class="offset-value">(+00 мин)</span>
+                        </div>
+                        <button class="offset-btn" onclick="adjustOffset('on', 5)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Группа 2: Время ПК + Время STM32 и кнопка Синхронизация -->
+            <div class="time-sync-group">
+                <div class="clocks-container">
+                    <div id="pc-clock" class="clock-widget">
+                        <div class="clock-title">Время ПК</div>
+                        <div id="pc-time" class="clock-time">--:--:--</div>
+                        <div id="pc-date" class="clock-date">--.--.----</div>
+                    </div>
+                    <div id="stm32-clock" class="clock-widget">
+                        <div class="clock-title">Время STM32</div>
+                        <div id="mcu-time" class="clock-time">--:--:--</div>
+                        <div id="mcu-date" class="clock-date">--.--.----</div>
+                    </div>
+                </div>
+                <button id="btn-sync" class="btn btn-secondary" disabled>Синхронизировать время</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- НИЖНИЙ ЯРУС: Температура и Управление светом сверху, График снизу -->
+    <main class="main-grid">
+        <div class="dashboard">
+            <h1>Температура</h1>
+            <div class="temp-display">
+                <div class="temp-label">Датчик DS18B20</div>
+                <div id="temp-out" class="temp-value">--°C</div>
+            </div>
+        </div>
+
+        <div class="dashboard relay-control-box">
+            <h1 class="card-title-with-icon">
+                <svg class="bulb-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" fill="rgba(245, 158, 11, 0.25)"/>
+                    <path d="M9 18h6"/>
+                    <path d="M10 22h4"/>
+                </svg>
+                <span>Управление светом</span>
+            </h1>
+
+            <div class="relay-mode-selector">
+                <button id="btn-mode-auto" class="mode-btn active" onclick="setRelayMode('AUTO')" disabled>Авто</button>
+                <button id="btn-mode-man" class="mode-btn" onclick="setRelayMode('MANUAL')" disabled>Ручной</button>
+                <button id="btn-mode-time" class="mode-btn" onclick="setRelayMode('TIMER')" disabled>Таймер</button>
+            </div>
+
+            <div id="panel-auto" class="sub-panel">
+                <div class="auto-mode-description">
+                    Свет включается автоматически на <span class="highlight-orange">заходе солнца</span> и выключается на <span class="highlight-green">восходе</span> по координатам Бреста с учётом выставленного смещения минут.
+                </div>
+            </div>
+
+            <div id="panel-manual" class="sub-panel hidden">
+                <div class="flex-buttons">
+                    <button id="btn-relay-on" class="btn btn-relay-on" onclick="sendRelayCommand('RELAY:ON')" disabled>Включить</button>
+                    <button id="btn-relay-off" class="btn btn-relay-off" onclick="sendRelayCommand('RELAY:OFF')" disabled>Выключить</button>
+                </div>
+            </div>
+
+            <div id="panel-timer" class="sub-panel hidden">
+                <div class="timer-input-group">
+                    <div class="timer-input-wrapper">
+                        <input type="number" id="input-timer-min" min="1" max="1440" value="30" disabled>
+                        <span class="timer-unit">мин.</span>
+                    </div>
+                    <button id="btn-timer-start" class="btn btn-timer-start" onclick="toggleWebTimer()" disabled>Пуск</button>
+                </div>
+
+                <div class="timer-presets">
+                    <button class="preset-btn" onclick="setTimerPreset(15)" disabled>15м</button>
+                    <button class="preset-btn" onclick="setTimerPreset(30)" disabled>30м</button>
+                    <button class="preset-btn" onclick="setTimerPreset(60)" disabled>60м</button>
+                </div>
+
+                <div id="timer-countdown" class="timer-countdown hidden">Осталось: <span id="countdown-val">00:00</span></div>
+            </div>
+
+            <div class="relay-hardware-status">
+                Статус нагрузки: <span id="relay-state-label" class="status-offline">НЕТ СВЯЗИ</span>
+            </div>
+        </div>
+
+        <!-- График на всю ширину под Температурой и Управлением светом -->
+        <div class="chart-container grid-chart-full">
+            <div class="chart-header">
+                <span>История изменения температуры</span>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-sync-eeprom" class="btn-export-csv" title="Скачать архив из памяти STM32">💾 Архив МК</button>
+                    <button id="btn-export-csv" class="btn-export-csv" title="Скачать историю в Excel (CSV)">📥 CSV</button>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Всплывающее уведомление (заменяет сообщения терминала) -->
+<div id="toast-notification" class="toast hidden"></div>
+
+<!-- МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ СИНХРОНИЗАЦИИ -->
+<div id="sync-confirm-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">🕒 Проверка настроек освещения</div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Проверьте время срабатывания реле перед записью в память STM32:</p>
+            <div class="modal-info-list">
+                <div class="modal-info-item off">
+                    <span id="modal-light-off-val">Выкл. света: --:--</span>
+                    <span id="modal-offset-off-val" class="modal-badge">(+00 мин)</span>
+                </div>
+                <div class="modal-info-item on">
+                    <span id="modal-light-on-val">Вкл. света: --:--</span>
+                    <span id="modal-offset-on-val" class="modal-badge">(+00 мин)</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button id="btn-modal-cancel" class="btn btn-secondary">Отмена</button>
+            <button id="btn-modal-confirm" class="btn btn-modal-ok">Синхронизировать</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="sun_calendar.js"></script>
+<script src="relay_control.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
