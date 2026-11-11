@@ -30,12 +30,12 @@
                     <div class="clock-title">☀️ Восход солнца</div>
                     <div id="sunrise-time" class="clock-time">--:--</div>
                     <div class="light-status-block light-status-off">
-                        <button class="offset-btn" onclick="adjustOffset('off', -5)">−</button>
-                        <div class="light-status-text">
-                            <span id="light-off-time">Выкл. света: --:--</span>
+                        <span id="light-off-time" class="light-status-label">Выкл. света: --:--</span>
+                        <div class="offset-controls-row">
+                            <button class="offset-btn" onclick="adjustOffset('off', -5)">−</button>
                             <span id="offset-off-text" class="offset-value">(+00 мин)</span>
+                            <button class="offset-btn" onclick="adjustOffset('off', 5)">+</button>
                         </div>
-                        <button class="offset-btn" onclick="adjustOffset('off', 5)">+</button>
                     </div>
                 </div>
 
@@ -43,12 +43,12 @@
                     <div class="clock-title">🌙 Заход солнца</div>
                     <div id="sunset-time" class="clock-time">--:--</div>
                     <div class="light-status-block light-status-on">
-                        <button class="offset-btn" onclick="adjustOffset('on', -5)">−</button>
-                        <div class="light-status-text">
-                            <span id="light-on-time">Вкл. света: --:--</span>
+                        <span id="light-on-time" class="light-status-label">Вкл. света: --:--</span>
+                        <div class="offset-controls-row">
+                            <button class="offset-btn" onclick="adjustOffset('on', -5)">−</button>
                             <span id="offset-on-text" class="offset-value">(+00 мин)</span>
+                            <button class="offset-btn" onclick="adjustOffset('on', 5)">+</button>
                         </div>
-                        <button class="offset-btn" onclick="adjustOffset('on', 5)">+</button>
                     </div>
                 </div>
             </div>
@@ -57,12 +57,12 @@
             <div class="time-sync-group">
                 <div class="clocks-container">
                     <div id="pc-clock" class="clock-widget">
-                        <div class="clock-title">Время ПК</div>
+                        <div class="clock-title">Время</div>
                         <div id="pc-time" class="clock-time">--:--:--</div>
                         <div id="pc-date" class="clock-date">--.--.----</div>
                     </div>
                     <div id="stm32-clock" class="clock-widget">
-                        <div class="clock-title">Время STM32</div>
+                        <div class="clock-title">Блок управления</div>
                         <div id="mcu-time" class="clock-time">--:--:--</div>
                         <div id="mcu-date" class="clock-date">--.--.----</div>
                     </div>
@@ -114,9 +114,8 @@
             <div id="panel-timer" class="sub-panel hidden">
                 <div class="timer-input-group">
                     <div class="timer-input-wrapper">
-                        <!-- autocomplete="new-password" намертво блокирует вылет карт и сохранённых адресов в Chrome -->
-                        <input type="number" id="input-timer-min" min="1" max="1440" value="30" autocomplete="new-password" enterkeyhint="done">
-
+                        <!-- Защищённое поле от автозаполнения Chrome -->
+                        <input type="number" id="input-timer-min" min="1" max="1440" value="30" autocomplete="off" autocorrect="off" inputmode="numeric">
 
                         <span class="timer-unit">мин.</span>
                     </div>

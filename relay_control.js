@@ -53,6 +53,23 @@ window.setRelayMode = async function(mode) {
     }
 };
 
+// Визуальное приглушение нажатой кнопки в ручном режиме ('ON', 'OFF' или null — обе яркие)
+function updateManualButtonsVisual(state) {
+    const btnOn = document.getElementById('btn-relay-on');
+    const btnOff = document.getElementById('btn-relay-off');
+    if (!btnOn || !btnOff) return;
+
+    btnOn.classList.remove('btn-dimmed');
+    btnOff.classList.remove('btn-dimmed');
+
+    if (state === 'ON') {
+        btnOn.classList.add('btn-dimmed');  // Свет включён -> приглушаем "Включить", "Выключить" яркая
+    } else if (state === 'OFF') {
+        btnOff.classList.add('btn-dimmed'); // Свет выключен -> приглушаем "Выключить", "Включить" яркая
+    }
+};
+
+
 // 2. Отправка команд управления реле в микроконтроллер STM32
 window.sendRelayCommand = async function(cmdString) {
     if (typeof dataCharacteristic === 'undefined' || !dataCharacteristic) {
@@ -79,10 +96,12 @@ window.sendRelayCommand = async function(cmdString) {
                 label.className = "status-on";
             } else if (cmdString === 'RELAY:ON') {
                 label.textContent = "ВКЛЮЧЕНА (РУЧНОЙ)";
-                label.className = "status-on";
+                label.className = "status-on";   
+                updateManualButtonsVisual('ON');  // Обновление видимости кнопок Включить \ Выключить
             } else if (cmdString === 'RELAY:OFF') {
                 label.textContent = "ВЫКЛЮЧЕНА (РУЧНОЙ)";
                 label.className = "status-off";
+                updateManualButtonsVisual('OFF');  // Обновление видимости кнопок Включить \ Выключить
             } else if (cmdString === 'RELAY:AUTO') {
                 label.textContent = "АВТОМАТИЧЕСКИ";
                 label.className = "status-on";
@@ -230,9 +249,8 @@ window.setRelayControlsDisabled = function(isDisabled) {
     document.querySelectorAll('.preset-btn').forEach(btn => {
         btn.disabled = isDisabled;
     });
-
     if (isDisabled) {
-        updateManualButtonsVisual(null);
+    updateManualButtonsVisual(null);  // Обновление видимости кнопок Включить \ Выключить
     }
 };
 
@@ -282,11 +300,13 @@ window.syncRelayStatusFromMCU = function(statusStr) {
         document.getElementById('panel-manual').classList.remove('hidden');
         label.textContent = "ВКЛЮЧЕНА (РУЧНОЙ)";
         label.className = "status-on";
+        updateManualButtonsVisual('ON');  // Обновление видимости кнопок Включить \ Выключить
     } else if (statusStr === "MANUAL_OFF") {
         window.currentRelayMode = "MANUAL";
         document.getElementById('btn-mode-man').classList.add('active');
         document.getElementById('panel-manual').classList.remove('hidden');
         label.textContent = "ВЫКЛЮЧЕНА (РУЧНОЙ)";
         label.className = "status-off";
+        updateManualButtonsVisual('OFF');  // Обновление видимости кнопок Включить \ Выключить
     }
 };

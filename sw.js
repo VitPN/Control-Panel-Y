@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stm32-pwa-v2';
+const CACHE_NAME = 'stm32-pwa_' + '20261111_0015'; 
 
 const ASSETS_TO_CACHE = [
     './',

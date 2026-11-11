@@ -62,8 +62,8 @@ setInterval(updatePCClock, 1000);
 updatePCClock();
 
 function updateSunWidgets() {
-    if (typeof window.calculateBrestSunTimings === 'function') {
-        const timings = window.calculateBrestSunTimings(offsetLightOff, offsetLightOn);
+    if (typeof window.calculateSunTimings === 'function') {
+        const timings = window.calculateSunTimings(offsetLightOff, offsetLightOn);
         document.getElementById('sunrise-time').textContent = timings.sunrise;
         document.getElementById('sunset-time').textContent = timings.sunset;
         document.getElementById('light-off-time').textContent = "Выкл. света: " + timings.lightOff;
