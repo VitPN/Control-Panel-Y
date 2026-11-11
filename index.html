@@ -114,7 +114,9 @@
             <div id="panel-timer" class="sub-panel hidden">
                 <div class="timer-input-group">
                     <div class="timer-input-wrapper">
-                        <input type="number" id="input-timer-min" min="1" max="1440" value="30">
+                        <!-- autocomplete="new-password" намертво блокирует вылет карт и сохранённых адресов в Chrome -->
+                        <input type="number" id="input-timer-min" min="1" max="1440" value="30" autocomplete="new-password" inputmode="numeric">
+
                         <span class="timer-unit">мин.</span>
                     </div>
                     <button id="btn-timer-start" class="btn btn-timer-start" onclick="toggleWebTimer()" disabled>Пуск</button>
