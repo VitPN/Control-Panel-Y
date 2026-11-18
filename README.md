@@ -1,6 +1,6 @@
 Control Panel Y
-A Progressive Web App (PWA) interface for controlling an STM32F103 microcontroller via a JDY-33 Bluetooth module using the Web Bluetooth API. 
-It supports operation on PCs and Android smartphones, offline caching, and automatic synchronization of settings with non-volatile AT24C32 EEPROM memory.
+
+Control Panel Y A Progressive Web App (PWA) interface for controlling an STM32F103 microcontroller via a JDY-33 Bluetooth module using the Web Bluetooth API. It supports operation on PCs and Android smartphones, offline caching, and automatic synchronization of settings with non-volatile AT24C32 EEPROM memory.
 
 ## 📁 Project Structure
 
@@ -29,5 +29,4 @@ Control-Panel-Y/
 * **Communication & Hardware Layer (`app.js`, `relay_control.js`)** — manages the connection to the JDY-33 module via the Web Bluetooth API, splits outgoing commands into 20-byte BLE MTU chunks, handles the smart `PING` keep-alive timer, and persists local user settings in `localStorage`.
 * **Astronomical Module (`sun_calendar.js`)** — calculates exact daily sunrise and sunset times using user-defined minute offsets and automatic system timezone detection via `Intl.DateTimeFormat`.
 * **PWA & Deployment (`sw.js`, `manifest.json`, `deploy.bat`)** — enables full offline operation and provides one-click cache version bumping when publishing updates to GitHub Pages.
-* * *
 * **Microcontroller Firmware (`firmware/main.c`)** — parses incoming UART commands, controls relay outputs based on the internal RTC, and records a 24-hour temperature log in non-volatile AT24C32 EEPROM memory.

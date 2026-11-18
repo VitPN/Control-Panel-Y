@@ -1,0 +1,148 @@
+/* ============================================================================
+   === ТЕРМИНАЛ ОТЛАДКИ (UART / BLE LOG + РУЧНОЙ ВВОД КОМАНД) ===
+   ============================================================================ */
+
+.terminal-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+    height: 255px;
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.terminal-output {
+    flex: 1;
+    background: #020617;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #cbd5e1;
+    overflow-y: auto;
+    text-align: left;
+    user-select: text;
+}
+
+.term-line {
+    margin-bottom: 3px;
+    word-break: break-all;
+}
+
+.term-time {
+    color: #64748b;
+    margin-right: 6px;
+}
+
+.term-rx {
+    color: #10b981; /* Зелёный цвет для входящих от STM32 (RX) */
+}
+
+.term-tx {
+    color: #38bdf8; /* Синий цвет для исходящих команд (TX) */
+}
+
+.term-error {
+    color: #ef4444; /* Красный цвет для ошибок */
+    font-weight: 700;
+}
+
+/* Строка ручного ввода команд внизу терминала */
+.terminal-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.terminal-cmd-input {
+    flex: 1;
+    background: #020617;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: #f8fafc;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.terminal-cmd-input:focus {
+    border-color: var(--accent-color);
+}
+
+.terminal-cmd-input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btn-terminal-send {
+    background: rgba(56, 189, 248, 0.16);
+    color: var(--accent-color);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-terminal-send:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.28);
+}
+
+.btn-terminal-send:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ============================================================================
+   === АДАПТИВНЫЕ ПРАВИЛА ТЕРМИНАЛА ДЛЯ СМАРТФОНА ===
+   ============================================================================ */
+
+@media (max-width: 600px) {
+    .terminal-container {
+        height: 225px;
+        min-height: 200px;
+    }
+
+    .terminal-header {
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+    }
+
+    .terminal-output {
+        padding: 8px 10px;
+        font-size: 0.74rem;
+        line-height: 1.38;
+    }
+
+    .terminal-input-row {
+        gap: 6px;
+        margin-top: 6px;
+    }
+
+    .terminal-cmd-input {
+        min-width: 0;
+        padding: 7px 9px;
+        font-size: 0.8rem;
+    }
+
+    .btn-terminal-send {
+        padding: 7px 10px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+}

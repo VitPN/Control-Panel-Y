@@ -1,12 +1,14 @@
-const CACHE_NAME = 'stm32-pwa_' + '20261111_0015'; 
+﻿const CACHE_NAME = 'stm32-pwa_~0,8datetime:~8,4'; // BUILD_VERSION_MARKER
 
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
+    './terminal.css',
     './app.js',
     './relay_control.js',
     './sun_calendar.js',
+    './terminal.js',
     //'./chart.umd.min.js',
     'https://cdn.jsdelivr.net/npm/chart.js',
     './manifest.json',

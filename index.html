@@ -11,6 +11,7 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="terminal.css">
 </head>
 <body>
 
@@ -21,8 +22,9 @@
             <h2 class="connection-title">Bluetooth</h2>
             <div id="status-text" class="status">Отключено</div>
             <button id="btn-connect" class="connect-btn">Подключить</button>
+            <button type="button" id="btn-mute-toggle" class="btn-mute" onclick="toggleBuzzerMute()" title="Звук контроллера" disabled>🔊</button>
         </div>
-
+        
         <div class="top-widgets-right">
             <!-- Группа 1: Восход и Заход солнца -->
             <div class="sun-container">
@@ -72,16 +74,9 @@
         </div>
     </header>
 
-    <!-- НИЖНИЙ ЯРУС: Температура и Управление светом сверху, График снизу -->
+    <!-- НИЖНИЙ ЯРУС: Управление светом и Управление автоматами сверху, Температура + График снизу -->
     <main class="main-grid">
-        <div class="dashboard">
-            <h1>Температура</h1>
-            <div class="temp-display">
-                <div class="temp-label">Датчик DS18B20</div>
-                <div id="temp-out" class="temp-value">--°C</div>
-            </div>
-        </div>
-
+        <!-- БЛОК 1: Управление светом -->
         <div class="dashboard relay-control-box">
             <h1 class="card-title-with-icon">
                 <svg class="bulb-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -100,23 +95,21 @@
 
             <div id="panel-auto" class="sub-panel">
                 <div class="auto-mode-description">
-                    Свет включается автоматически на <span class="highlight-orange">заходе солнца</span> и выключается на <span class="highlight-green">восходе</span> по координатам Бреста с учётом выставленного смещения минут.
+                    Свет включается автоматически на <span class="highlight-orange">заходе солнца</span> и выключается на <span class="highlight-green">восходе</span> с учётом выставленного смещения минут.
                 </div>
             </div>
 
             <div id="panel-manual" class="sub-panel hidden">
                 <div class="flex-buttons">
-                    <button id="btn-relay-on" class="btn btn-relay-on" onclick="sendRelayCommand('RELAY:ON')" disabled>Включить</button>
-                    <button id="btn-relay-off" class="btn btn-relay-off" onclick="sendRelayCommand('RELAY:OFF')" disabled>Выключить</button>
+                    <button id="btn-relay-on" class="btn btn-relay-on" onclick="sendRelayCommand('LIGHT:ON')" disabled>Включить</button>
+                    <button id="btn-relay-off" class="btn btn-relay-off" onclick="sendRelayCommand('LIGHT:OFF')" disabled>Выключить</button>
                 </div>
             </div>
 
             <div id="panel-timer" class="sub-panel hidden">
                 <div class="timer-input-group">
                     <div class="timer-input-wrapper">
-                        <!-- Защищённое поле от автозаполнения Chrome -->
-                        <input type="number" id="input-timer-min" min="1" max="1440" value="30" autocomplete="off" autocorrect="off" inputmode="numeric">
-
+                        <input type="number" id="input-timer-min" min="1" max="1440" value="30" disabled>
                         <span class="timer-unit">мин.</span>
                     </div>
                     <button id="btn-timer-start" class="btn btn-timer-start" onclick="toggleWebTimer()" disabled>Пуск</button>
@@ -136,19 +129,98 @@
             </div>
         </div>
 
-        <!-- График на всю ширину под Температурой и Управлением светом -->
-        <div class="chart-container grid-chart-full">
-            <div class="chart-header">
-                <span>История изменения температуры</span>
-                <div style="display: flex; gap: 8px;">
-                    <button id="btn-sync-eeprom" class="btn-export-csv" title="Скачать архив из памяти STM32">💾 Архив МК</button>
-                    <button id="btn-export-csv" class="btn-export-csv" title="Скачать историю в Excel (CSV)">📥 CSV</button>
+        <!-- БЛОК 2: Управление автоматами (2 канала реле с двойным суточным расписанием) -->
+        <div class="dashboard breakers-control-box">
+            <h1 class="card-title-with-icon">
+                <svg class="breaker-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2" fill="rgba(56, 189, 248, 0.15)"/>
+                    <path d="M9 10h6"/>
+                    <path d="M12 7v6"/>
+                    <path d="M9 17h6"/>
+                </svg>
+                <span>Управление автоматами</span>
+            </h1>
+
+            <!-- Выбор канала реле -->
+            <div class="relay-mode-selector">
+                <button id="btn-ch-1" class="mode-btn active" onclick="selectBreakerChannel(1)">Канал 1</button>
+                <button id="btn-ch-2" class="mode-btn" onclick="selectBreakerChannel(2)">Канал 2</button>
+            </div>
+
+            <!-- Расписание 2 раза в сутки для выбранного канала -->
+            <div class="breaker-schedule-list">
+                <div class="schedule-row">
+                    <span class="schedule-label">Таймер 1:</span>
+                    <div class="schedule-times">
+                        <span class="time-tag on">Вкл</span>
+                        <input type="time" id="ch-t1-on" class="time-picker-input" value="07:00" onchange="saveBreakerScheduleToLocal()">
+                        <span class="time-tag off">Выкл</span>
+                        <input type="time" id="ch-t1-off" class="time-picker-input" value="09:00" onchange="saveBreakerScheduleToLocal()">
+                    </div>
+                </div>
+
+                <div class="schedule-row">
+                    <span class="schedule-label">Таймер 2:</span>
+                    <div class="schedule-times">
+                        <span class="time-tag on">Вкл</span>
+                        <input type="time" id="ch-t2-on" class="time-picker-input" value="18:00" onchange="saveBreakerScheduleToLocal()">
+                        <span class="time-tag off">Выкл</span>
+                        <input type="time" id="ch-t2-off" class="time-picker-input" value="23:00" onchange="saveBreakerScheduleToLocal()">
+                    </div>
                 </div>
             </div>
-            <div class="chart-wrapper">
-                <canvas id="tempChart"></canvas>
+
+            <!-- Кнопки управления и записи расписания в контроллер -->
+            <!-- Кнопки режимов и записи расписания в контроллер -->
+            <div class="breaker-actions-row">
+                <button id="btn-ch-auto" class="btn btn-ch-auto btn-compact" onclick="sendBreakerAuto()" disabled>Авто</button>
+                <button id="btn-ch-save" class="btn btn-save-schedule btn-compact" onclick="sendBreakerScheduleToMCU()" disabled>Записать</button>
+                <button id="btn-ch-on" class="btn btn-relay-on btn-compact" onclick="sendBreakerManual('ON')" disabled>Включить</button>
+                <button id="btn-ch-off" class="btn btn-relay-off btn-compact" onclick="sendBreakerManual('OFF')" disabled>Выключить</button>
+            </div>
+
+
+            <div class="relay-hardware-status">
+                Статус канала: <span id="breaker-state-label" class="status-offline">НЕТ СВЯЗИ</span>
             </div>
         </div>
+
+        <!-- НИЖНИЙ БЛОК НА ВСЮ ШИРИНУ: Температура слева + График справа -->
+        <div class="chart-container grid-chart-full temp-chart-combined">
+            <div class="temp-side-panel">
+                <h1>Температура</h1>
+                <div class="temp-display temp-display-compact">
+                    <div class="temp-label">Датчик DS18B20</div>
+                    <div id="temp-out" class="temp-value">--°C</div>
+                </div>
+            </div>
+
+            <div class="chart-side-panel">
+                <div class="chart-header">
+                    <span>История изменения температуры</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btn-sync-eeprom" class="btn-export-csv" title="Скачать архив из памяти STM32">💾 Архив МК</button>
+                        <button id="btn-export-csv" class="btn-export-csv" title="Скачать историю в Excel (CSV)">📥 CSV</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- ТЕРМИНАЛ ОТЛАДКИ (UART / BLE LOG + РУЧНОЙ ВВОД КОМАНД) -->
+        <div class="dashboard grid-chart-full terminal-container">
+            <div class="terminal-header">
+                <span>Терминал UART / BLE</span>
+                <button type="button" id="btn-clear-terminal" class="btn-export-csv" onclick="clearTerminal()">🧹 Очистить</button>
+            </div>
+            <div id="terminal-output" class="terminal-output"></div>
+            <div class="terminal-input-row">
+                <input type="text" id="terminal-cmd-input" class="terminal-cmd-input" placeholder="Введите команду (например, STATUS)..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" disabled>
+                <button type="button" id="btn-terminal-send" class="btn-terminal-send" onclick="sendManualTerminalCommand()" disabled>Отправить</button>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -180,6 +252,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="terminal.js"></script>
 <script src="sun_calendar.js"></script>
 <script src="relay_control.js"></script>
 <script src="app.js"></script>

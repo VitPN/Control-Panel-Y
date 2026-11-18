@@ -101,6 +101,9 @@ window.adjustOffset = function(type, value) {
 setInterval(updateSunWidgets, 3600000);
 initSunWidgetsOnLoad();
 
+// === ТЕРМИНАЛ ОТЛАДКИ ===
+
+
 // === ГРАФИК И КОЛЬЦЕВОЙ БУФЕР ТЕМПЕРАТУРЫ ===
 const MAX_CHART_POINTS = 30;
 const MAX_HISTORY_POINTS = 50000;
@@ -211,24 +214,37 @@ function setStatus(type, message) {
 function requestInitialMcuState() {
     setTimeout(async () => {
         if (!dataCharacteristic) return;
+
+        if (typeof window.resetPingTimer === 'function') {
+            window.resetPingTimer();
+        }
+
         try {
             const encoder = new TextEncoder();
+            const sendCmd = async (cmdStr) => {
+                const bytes = encoder.encode(cmdStr);
+                if (dataCharacteristic.writeValueWithResponse) {
+                    await dataCharacteristic.writeValueWithResponse(bytes);
+                } else {
+                    await dataCharacteristic.writeValue(bytes);
+                }
+                if (typeof window.logToTerminal === 'function') {
+                    window.logToTerminal(cmdStr.trim(), 'TX');
+                }
+            };
             
-            const statusCmd = encoder.encode("GET_STATUS\n");
-            if (dataCharacteristic.writeValueWithResponse) {
-                await dataCharacteristic.writeValueWithResponse(statusCmd);
-            } else {
-                await dataCharacteristic.writeValue(statusCmd);
-            }
-
+            await sendCmd("GET_STATUS\n");
             await new Promise(r => setTimeout(r, 100));
 
-            const offsetsCmd = encoder.encode("GET_OFFSETS\n");
-            if (dataCharacteristic.writeValueWithResponse) {
-                await dataCharacteristic.writeValueWithResponse(offsetsCmd);
-            } else {
-                await dataCharacteristic.writeValue(offsetsCmd);
-            }
+            await sendCmd("GET_OFFSETS\n");
+            await new Promise(r => setTimeout(r, 100));
+
+            // ---> ДОБАВЛЕННЫЕ ЗАПРОСЫ АВТОМАТОВ И ЗВУКА <---
+            await sendCmd("GET_BREAKERS\n");
+            await new Promise(r => setTimeout(r, 100));
+
+            await sendCmd("GET_MUTE\n");
+            // ---> КОНЕЦ ВСТАВКИ <---
 
             // Страховка: если через 3 секунды статус всё ещё в ожидании — снимаем мигание
             setTimeout(() => {
@@ -237,6 +253,11 @@ function requestInitialMcuState() {
                     relayLabel.textContent = "НЕТ ОТВЕТА ОТ МК";
                     relayLabel.className = "status-offline";
                 }
+                const breakerLabel = document.getElementById('breaker-state-label');
+                if (breakerLabel && breakerLabel.classList.contains('status-pending')) {
+                    breakerLabel.textContent = "НЕТ ОТВЕТА ОТ МК";
+                    breakerLabel.className = "status-offline";
+                }
             }, 3000);
 
         } catch (err) {
@@ -244,6 +265,7 @@ function requestInitialMcuState() {
         }
     }, 400);
 }
+
 
 btnConnect.addEventListener('click', async () => {
     if (bluetoothDevice && bluetoothDevice.gatt.connected) {
@@ -272,11 +294,6 @@ btnConnect.addEventListener('click', async () => {
         btnConnect.className = "connect-btn connected";
         btnSync.disabled = false;
 
-                setStatus("OK", "Подключено");
-        btnConnect.textContent = "Отключить";
-        btnConnect.className = "connect-btn connected";
-        btnSync.disabled = false;
-
         // Показываем нейтральный статус ожидания ответа от STM32
         const relayLabel = document.getElementById('relay-state-label');
         if (relayLabel) {
@@ -284,9 +301,24 @@ btnConnect.addEventListener('click', async () => {
             relayLabel.className = "status-pending";
         }
 
+        // Показываем пульсирующий статус ожидания ответа для блока автоматов
+        const breakerLabel = document.getElementById('breaker-state-label');
+        if (breakerLabel) {
+            breakerLabel.textContent = "ЗАПРОС СОСТОЯНИЯ...";
+            breakerLabel.className = "status-pending";
+        }
+
         if (typeof window.setRelayControlsDisabled === 'function') {
             window.setRelayControlsDisabled(false);
         }
+
+        if (typeof window.setTerminalDisabled === 'function') {
+            window.setTerminalDisabled(false);
+        }
+
+        const btnMute = document.getElementById('btn-mute-toggle');
+        if (btnMute) btnMute.disabled = false;
+
 
         requestInitialMcuState();
 
@@ -337,6 +369,12 @@ if (btnSyncEeprom) {
                 resetEepromDownloadState('Таймаут: STM32 не ответил на запрос архива', true);
             }
         }, 5000);
+        
+        // Сбрасываем счётчик PING в 0 перед отправкой команды управления
+        // Reset PING command
+        if (typeof window.resetPingTimer === 'function') {
+            window.resetPingTimer();
+        }
 
         try {
             const encoder = new TextEncoder();
@@ -352,6 +390,28 @@ if (btnSyncEeprom) {
     });
 }
 
+// === Обработчик кнопки «Без звука» и приём ответа MUTE:1 / MUTE:0 от микроконтроллера ===
+let isBuzzerMuted = false;
+
+// Обновление внешнего вида кнопки звука
+function updateMuteButtonUI(muted) {
+    isBuzzerMuted = muted;
+    const btn = document.getElementById('btn-mute-toggle');
+    if (!btn) return;
+
+    btn.textContent = muted ? '🔇' : '🔊';
+    btn.classList.toggle('muted', muted);
+    btn.title = muted ? 'Звук выключен (нажмите, чтобы включить)' : 'Звук включён (нажмите, чтобы выключить)';
+}
+
+// Переключение режима звука по клику
+window.toggleBuzzerMute = async function() {
+    const nextState = isBuzzerMuted ? 0 : 1;
+    if (typeof window.sendRelayCommand === 'function') {
+        await window.sendRelayCommand(`MUTE:${nextState}`);
+    }
+};
+
 // === ПРИЁМ ДАННЫХ ОТ STM32 ===
 function handleIncomingData(event) {
     const value = event.target.value;
@@ -362,6 +422,11 @@ function handleIncomingData(event) {
     while ((lineEndIndex = receivedBuffer.indexOf('\n')) >= 0) {
         const line = receivedBuffer.substring(0, lineEndIndex).trim();
         receivedBuffer = receivedBuffer.substring(lineEndIndex + 1);
+
+        if (line.length > 0 && typeof window.logToTerminal === 'function') {
+            window.logToTerminal(line, 'RX');
+        }
+
 
         if (line.startsWith("CRC_ERR") || line.includes("Error")) {
             window.showToast(line, true);
@@ -469,6 +534,22 @@ function handleIncomingData(event) {
 
             downloadCsvBlob(csvContent, `stm32_eeprom_log_${new Date().toISOString().slice(0, 10)}.csv`);
         }
+        else if (line === "MUTE:ON") {
+            updateMuteButtonUI(true);
+        }
+        else if (line === "MUTE:OFF") {
+            updateMuteButtonUI(false);
+        }
+        else if (line.startsWith("CH1_STATUS:") || line.startsWith("CH2_STATUS:")) {
+            if (typeof window.syncBreakerStatusFromMCU === 'function') {
+                window.syncBreakerStatusFromMCU(line);
+            }
+        }
+        else if (line.startsWith("S1:") || line.startsWith("S2:")) {
+            if (typeof window.syncBreakerScheduleFromMCU === 'function') {
+                window.syncBreakerScheduleFromMCU(line);
+            }
+        }
     }
 }
 
@@ -523,6 +604,12 @@ btnSync.addEventListener('click', async () => {
     const isConfirmed = await showSyncConfirmModal();
     if (!isConfirmed) return;
 
+    // Сбрасываем счётчик PING в 0 перед отправкой команды управления
+    // Reset PING command
+    if (typeof window.resetPingTimer === 'function') {
+        window.resetPingTimer();
+    }
+
     try {
         btnSync.disabled = true;
         isSyncConfirmed = false;
@@ -532,14 +619,15 @@ btnSync.addEventListener('click', async () => {
         const hrs = String(now.getHours()).padStart(2, '0');
         const min = String(now.getMinutes()).padStart(2, '0');
         const sec = String(now.getSeconds()).padStart(2, '0');
-        const timeCmd = `TIME:${hrs}.${min}.${sec}\n`;
+        const timeCmd = `DATE:${hrs}.${min}.${sec}`;  // без \n
 
         const day = String(now.getDate()).padStart(2, '0');
         const mon = String(now.getMonth() + 1).padStart(2, '0');
         const yr = now.getFullYear();
-        const dateCmd = `DATE:${day}.${mon}.${yr}\n`;
+        const dateCmd = `.${day}.${mon}.${yr}\n`;  // const dateCmd = `DATE:${day}.${mon}.${yr}\n`;
 
         const offsetsCmd = `OFFSETS:${offsetLightOff}.${offsetLightOn}\n`;
+
         const encoder = new TextEncoder();
 
         if (dataCharacteristic.writeValueWithResponse) {
@@ -555,6 +643,12 @@ btnSync.addEventListener('click', async () => {
             await new Promise(r => setTimeout(r, 60));
             await dataCharacteristic.writeValue(encoder.encode(offsetsCmd));
         }
+
+        // Дополнительно синхронизируем координаты и часовой пояс
+        //if (typeof window.syncGeoWithMcu === 'function') {
+        //    await new Promise(r => setTimeout(r, 40));
+        //    await window.syncGeoWithMcu();
+        //}
 
         setTimeout(() => {
             if (bluetoothDevice && bluetoothDevice.gatt.connected) {
@@ -623,6 +717,8 @@ function onDisconnected() {
     btnSync.disabled = true;
     btnSync.textContent = "Синхронизировать время";
     btnSync.classList.remove("btn-error-flash", "sync-success-animate");
+    const btnMute = document.getElementById('btn-mute-toggle');
+    if (btnMute) btnMute.disabled = true;
 
     if (isDownloadingEeprom) resetEepromDownloadState();
 
@@ -632,11 +728,21 @@ function onDisconnected() {
     if (typeof window.stopWebTimer === 'function') {
         window.stopWebTimer();
     }
+    if (typeof window.setTerminalDisabled === 'function') {
+        window.setTerminalDisabled(true);
+    }
 
     const relayLabel = document.getElementById('relay-state-label');
     if (relayLabel) {
         relayLabel.textContent = "НЕТ СВЯЗИ";
         relayLabel.className = "status-offline";
+    }
+
+    // Сброс статуса канала автоматов
+    const breakerLabel = document.getElementById('breaker-state-label');
+    if (breakerLabel) {
+        breakerLabel.textContent = "НЕТ СВЯЗИ";
+        breakerLabel.className = "status-offline";
     }
 
     tempOut.textContent = "--°C";
@@ -645,16 +751,174 @@ function onDisconnected() {
     dataCharacteristic = null;
 }
 
-setInterval(async () => {
-    if (bluetoothDevice && bluetoothDevice.gatt.connected && dataCharacteristic) {
-        try {
-            const encoder = new TextEncoder();
-            const pingCmd = encoder.encode("PING\n");
-            if (dataCharacteristic.writeValueWithResponse) {
-                await dataCharacteristic.writeValueWithResponse(pingCmd);
-            } else {
-                await dataCharacteristic.writeValue(pingCmd);
-            }
-        } catch (e) {}
+// === УМНЫЙ KEEP-ALIVE (СБРАСЫВАЕТСЯ ПРИ ЛЮБОЙ АКТИВНОЙ КОМАНДЕ) ===
+let pingIntervalId = null;
+
+window.resetPingTimer = function() {
+    if (pingIntervalId) {
+        clearInterval(pingIntervalId);
     }
-}, 5000);
+    pingIntervalId = setInterval(async () => {
+        if (bluetoothDevice && bluetoothDevice.gatt.connected && dataCharacteristic) {
+            try {
+                const encoder = new TextEncoder();
+                const pingCmd = encoder.encode("PING\n");
+                if (dataCharacteristic.writeValueWithoutResponse) {
+                    await dataCharacteristic.writeValueWithoutResponse(pingCmd);
+                } else if (dataCharacteristic.writeValueWithResponse) {
+                    await dataCharacteristic.writeValueWithResponse(pingCmd);
+                } else {
+                    await dataCharacteristic.writeValue(pingCmd);
+                }
+            } catch (e) {}
+        }
+    }, 5000);
+};
+
+
+// Запускаем начальный отсчёт при загрузке скрипта
+window.resetPingTimer();
+
+
+// === КАСТОМНОЕ ВЫПАДАЮЩЕЕ ОКНО ВЫБОРА ВРЕМЕНИ ДЛЯ АВТОМАТОВ ===
+(function initCustomTimePickers() {
+    let activePopover = null;
+    let activeBtn = null;
+
+    function closePopover() {
+        if (activePopover) { activePopover.remove(); activePopover = null; }
+        if (activeBtn) { activeBtn.classList.remove('active-picker'); activeBtn = null; }
+    }
+
+    document.addEventListener('click', (e) => {
+        if (activePopover && !activePopover.contains(e.target) && e.target !== activeBtn) closePopover();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closePopover();
+    });
+
+    function openTimePopover(btn, inputEl) {
+        if (activeBtn === btn) { closePopover(); return; }
+        closePopover();
+
+        activeBtn = btn;
+        btn.classList.add('active-picker');
+
+        const [initH, initM] = (inputEl.value || '00:00').split(':').map(v => parseInt(v, 10) || 0);
+        let selH = initH;
+        let selM = initM;
+
+        const popover = document.createElement('div');
+        popover.className = 'time-picker-popover';
+        popover.innerHTML = `
+            <div class="time-picker-header"><span>Часы</span><span>Мин</span></div>
+            <div class="time-picker-columns">
+                <div class="time-picker-col" id="tp-hours-col"></div>
+                <div class="time-picker-col" id="tp-mins-col"></div>
+            </div>
+            <button type="button" class="time-picker-done-btn">Готово</button>
+        `;
+
+        const hoursCol = popover.querySelector('#tp-hours-col');
+        const minsCol = popover.querySelector('#tp-mins-col');
+
+        const applyValue = () => {
+            const formatted = `${String(selH).padStart(2, '0')}:${String(selM).padStart(2, '0')}`;
+            inputEl.value = formatted;
+            btn.innerHTML = `🕒 ${formatted}`;
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        for (let h = 0; h < 24; h++) {
+            const item = document.createElement('div');
+            item.className = 'time-picker-item' + (h === selH ? ' selected' : '');
+            item.textContent = String(h).padStart(2, '0');
+            item.addEventListener('click', () => {
+                hoursCol.querySelectorAll('.time-picker-item').forEach(el => el.classList.remove('selected'));
+                item.classList.add('selected');
+                selH = h;
+                applyValue();
+            });
+            hoursCol.appendChild(item);
+        }
+
+        for (let m = 0; m < 60; m++) {
+            const item = document.createElement('div');
+            item.className = 'time-picker-item' + (m === selM ? ' selected' : '');
+            item.textContent = String(m).padStart(2, '0');
+            item.addEventListener('click', () => {
+                minsCol.querySelectorAll('.time-picker-item').forEach(el => el.classList.remove('selected'));
+                item.classList.add('selected');
+                selM = m;
+                applyValue();
+            });
+            minsCol.appendChild(item);
+        }
+
+        popover.querySelector('.time-picker-done-btn').addEventListener('click', closePopover);
+        document.body.appendChild(popover);
+        activePopover = popover;
+
+        const rect = btn.getBoundingClientRect();
+        const popRect = popover.getBoundingClientRect();
+        let top = rect.bottom + 6;
+        let left = rect.left + (rect.width / 2) - (popRect.width / 2);
+
+        if (top + popRect.height > window.innerHeight - 10) top = rect.top - popRect.height - 6;
+        left = Math.max(10, Math.min(window.innerWidth - popRect.width - 10, left));
+
+        popover.style.top = `${top}px`;
+        popover.style.left = `${left}px`;
+
+        const selHourEl = hoursCol.querySelector('.selected');
+        const selMinEl = minsCol.querySelector('.selected');
+        if (selHourEl) hoursCol.scrollTop = selHourEl.offsetTop - 65;
+        if (selMinEl) minsCol.scrollTop = selMinEl.offsetTop - 65;
+    }
+
+    function enhanceTimeInputs() {
+        const ids = ['ch-t1-on', 'ch-t1-off', 'ch-t2-on', 'ch-t2-off'];
+        ids.forEach((id) => {
+            const input = document.getElementById(id);
+            if (!input || input.dataset.enhanced === 'true') return;
+            input.dataset.enhanced = 'true';
+            input.style.display = 'none';
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'custom-time-btn';
+            btn.innerHTML = `🕒 ${input.value || '00:00'}`;
+            btn.disabled = input.disabled;
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openTimePopover(btn, input);
+            });
+
+            const observer = new MutationObserver(() => {
+                btn.disabled = input.disabled;
+                btn.innerHTML = `🕒 ${input.value || '00:00'}`;
+            });
+            observer.observe(input, { attributes: true, attributeFilter: ['disabled', 'value'] });
+
+            const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+            if (desc && desc.set) {
+                Object.defineProperty(input, 'value', {
+                    get() { return desc.get.call(this); },
+                    set(val) {
+                        desc.set.call(this, val);
+                        btn.innerHTML = `🕒 ${val || '00:00'}`;
+                    }
+                });
+            }
+
+            input.parentNode.insertBefore(btn, input.nextSibling);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', enhanceTimeInputs);
+    } else {
+        enhanceTimeInputs();
+    }
+})();

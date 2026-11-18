@@ -442,6 +442,14 @@ h1 {
     transform: scale(0.98);
 }
 
+.btn.btn-dimmed {
+    opacity: 0.35;
+    filter: grayscale(40%);
+    transform: scale(0.98);
+    box-shadow: none !important;
+}
+
+
 
 /* Капсула таймера, кнопка Пуск и пресеты */
 .timer-input-group {
@@ -571,30 +579,63 @@ color: #f59e0b;
 font-variant-numeric: tabular-nums;
 text-align: center;
 }
+
+/* ============================================================================
+   === ПОДСВЕТКА СТАТУСА НАГРУЗКИ В БЛОКЕ УПРАВЛЕНИЯ СВЕТОМ ===
+   ============================================================================ */
 .relay-hardware-status {
-font-size: 0.8rem;
-font-weight: 600;
-color: var(--text-muted);
-border-top: 1px solid rgba(255, 255, 255, 0.05);
-padding-top: 10px;
-margin-top: auto;
-width: 100%;
-text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 6px 0 0 0;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    width: 100%;
 }
+
+#relay-state-label {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+}
+
+/* Нагрузка ВКЛЮЧЕНА (зелёная капсула с неоновой подсветкой) */
 #relay-state-label.status-on {
-color: #10b981;
-text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-font-weight: bold;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.28);
 }
+
+/* Нагрузка ВЫКЛЮЧЕНА (красная капсула с подсветкой) */
 #relay-state-label.status-off {
-color: #ef4444;
-text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-font-weight: bold;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
 }
+
+/* Нет связи с контроллером / Нет ответа (серая капсула) */
 #relay-state-label.status-offline {
-color: var(--text-muted);
-font-weight: bold;
+    color: #64748b;
+    background: rgba(100, 116, 139, 0.12);
+    border: 1px solid rgba(100, 116, 139, 0.25);
+    box-shadow: none;
 }
+
+/* Ожидание ответа от STM32 при подключении (пульсирующая голубая капсула) */
+#relay-state-label.status-pending {
+    color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    animation: pendingPulse 1.2s infinite ease-in-out;
+}
+
 /* ============================================================================
 === ГРАФИК ИСТОРИИ ТЕМПЕРАТУРЫ ===
 ============================================================================ */
@@ -821,4 +862,414 @@ grid-template-columns: 1fr;
 max-width: 420px;
 margin: 0 auto;
 }
+}
+
+/* ============================================================================
+   === БЛОК УПРАВЛЕНИЯ АВТОМАТАМИ (2 КАНАЛА РЕЛЕ И РАСПИСАНИЕ) ===
+   ============================================================================ */
+.dashboard {
+    height: auto;
+    min-height: 275px;
+}
+
+/* Увеличиваем высоту блока "Управление автоматами" (соседний блок в ряду выровняется автоматически) */
+.breakers-control-box {
+    justify-content: space-between;
+    min-height: 335px;
+}
+
+.breaker-icon {
+    color: var(--accent-color);
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.55));
+    flex-shrink: 0;
+}
+
+.breaker-schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px 0;
+    width: 100%;
+}
+
+.schedule-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 6px 8px;
+    gap: 6px;
+}
+
+.schedule-label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.schedule-times {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.time-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.time-tag.on { color: #10b981; }
+.time-tag.off { color: #ef4444; }
+
+.time-picker-input {
+    background: #020617;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    color: #f8fafc;
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 3px 5px;
+    font-family: inherit;
+    color-scheme: dark;
+    outline: none;
+}
+
+.time-picker-input:focus {
+    border-color: var(--accent-color);
+}
+
+.btn-compact {
+    padding: 9px 8px !important;
+    font-size: 0.85rem !important;
+}
+
+.btn-save-schedule {
+    background: rgba(56, 189, 248, 0.16);
+    color: var(--accent-color);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.btn-save-schedule:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.28);
+}
+
+/* ============================================================================
+   === КНОПКА "АВТО" В БЛОКЕ УПРАВЛЕНИЯ АВТОМАТАМИ ===
+   ============================================================================ */
+/* Двухрядная сетка кнопок:
+   Ряд 1: Авто (4 из 6 = 2/3 ширины) + Записать (2 из 6 = 1/3 ширины)
+   Ряд 2: Включить (3 из 6 = 1/2 ширины) + Выключить (3 из 6 = 1/2 ширины) */
+.breaker-actions-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin: 6px 0 10px 0;
+}
+
+.breaker-actions-row .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    margin: 0;
+    height: 36px;
+    box-sizing: border-box;
+}
+
+
+.btn-ch-auto {
+    background: rgba(16, 185, 129, 0.14);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+#btn-ch-auto {
+    grid-column: span 4; /* 2/3 общей ширины */
+}
+
+#btn-ch-save {
+    grid-column: span 2; /* 1/3 общей ширины */
+}
+
+#btn-ch-on {
+    grid-column: span 3; /* ровно половина общей ширины */
+}
+
+#btn-ch-off {
+    grid-column: span 3; /* ровно половина общей ширины */
+}
+
+.btn-ch-auto:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.25);
+}
+
+/* Активный индикатор, когда канал находится в режиме АВТО */
+.btn-ch-auto.active-auto {
+    background: #10b981;
+    color: #020617;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+/* ============================================================================
+   === ПОДСВЕТКА СТАТУСА В БЛОКЕ АВТОМАТОВ ===
+   ============================================================================ */
+.breakers-control-box .relay-hardware-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: transparent; /* Прозрачный фон, сливается с цветом карточки */
+    border: none;            /* Убираем внешнюю рамку плашки */
+    padding: 6px 0 0 0;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    width: 100%;
+}
+
+#breaker-state-label {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+}
+
+/* Канал ВКЛЮЧЁН (яркая зелёная подсветка) */
+#breaker-state-label.status-on {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.28);
+}
+
+/* Канал ВЫКЛЮЧЕН (спокойная красная/янтарная подсветка) */
+#breaker-state-label.status-off {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+}
+
+/* Нет связи с контроллером */
+#breaker-state-label.status-offline {
+    color: #64748b;
+    background: rgba(100, 116, 139, 0.12);
+    border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+/* Ожидание ответа от STM32 при подключении */
+#breaker-state-label.status-pending {
+    color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    animation: pendingPulse 1.2s infinite ease-in-out;
+}
+
+/* ============================================================================
+   === ОБЪЕДИНЁННЫЙ НИЖНИЙ БЛОК: ТЕМПЕРАТУРА + ГРАФИК ===
+   ============================================================================ */
+.temp-chart-combined {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 20px;
+    height: 310px;
+    align-items: stretch;
+}
+
+.temp-side-panel {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.temp-display-compact {
+    margin-top: 12px;
+    padding: 15px 10px;
+}
+
+.chart-side-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+@media (max-width: 920px) {
+    .temp-chart-combined {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .temp-side-panel .temp-display-compact {
+        padding: 20px 10px;
+    }
+
+    .chart-side-panel {
+        height: 270px;
+    }
+
+    .schedule-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .schedule-times {
+        width: 100%;
+        justify-content: space-between;
+    }
+/* ============================================================================
+   === BUTTON MUTE ===
+   ============================================================================ */
+}
+.btn-mute {
+    background: rgba(16, 185, 129, 0.14);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-mute.muted {
+    background: rgba(239, 68, 68, 0.14);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.btn-mute:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+
+/* === КАСТОМНЫЙ ПИКЕР ВРЕМЕНИ ДЛЯ БЛОКА АВТОМАТОВ === */
+.custom-time-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    color: #f8fafc;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transition: all 0.2s ease;
+    min-width: 78px;
+}
+
+.custom-time-btn:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+    transform: translateY(-1px);
+}
+
+.custom-time-btn.active-picker {
+    border-color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.18);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.45);
+}
+
+.custom-time-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.time-picker-popover {
+    position: fixed;
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 0 20px rgba(56, 189, 248, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 196px;
+    animation: popoverFadeIn 0.15s ease-out;
+}
+
+@keyframes popoverFadeIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.time-picker-header {
+    display: flex;
+    justify-content: space-around;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #94a3b8;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.time-picker-columns {
+    display: flex;
+    gap: 8px;
+    height: 170px;
+}
+
+.time-picker-col {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(56, 189, 248, 0.4) transparent;
+}
+
+.time-picker-col::-webkit-scrollbar { width: 4px; }
+.time-picker-col::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.4); border-radius: 4px; }
+
+.time-picker-item {
+    padding: 6px 0;
+    text-align: center;
+    border-radius: 8px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.time-picker-item:hover {
+    background: rgba(56, 189, 248, 0.16);
+    color: #ffffff;
+}
+
+.time-picker-item.selected {
+    background: #38bdf8;
+    color: #0f172a;
+    font-weight: 800;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+.time-picker-done-btn {
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 7px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
 }
